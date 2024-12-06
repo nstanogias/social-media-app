@@ -4,7 +4,10 @@ import { useInView } from "react-intersection-observer";
 import { Input } from "@/components/ui";
 import useDebounce from "@/hooks/useDebounce";
 import { GridPostList, Loader } from "@/components/shared";
-import { useGetPosts, useSearchPosts } from "@/lib/react-query/queries";
+import { useSearchPosts } from "@/lib/react-query/queries";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { getInfinitePosts } from "@/lib/appwrite/api";
+import { QUERY_KEYS } from "@/lib/react-query/queryKeys";
 
 export type SearchResultProps = {
   isSearchFetching: boolean;
@@ -28,7 +31,20 @@ const SearchResults = ({
 
 const Explore = () => {
   const { ref, inView } = useInView();
-  const { data: posts, fetchNextPage, hasNextPage } = useGetPosts();
+  const {
+    data: posts,
+    fetchNextPage,
+    hasNextPage,
+  } = useInfiniteQuery({
+    queryKey: [QUERY_KEYS.GET_INFINITE_POSTS],
+    queryFn: ({ pageParam }) => getInfinitePosts(pageParam),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage: any, allPages) => {
+      console.log("lastPage", lastPage);
+      console.log("allPages", allPages);
+      return lastPage?.documents.length > 0 ? allPages.length + 1 : null;
+    },
+  });
 
   const [searchValue, setSearchValue] = useState("");
   const debouncedSearch = useDebounce(searchValue, 500);
@@ -47,6 +63,8 @@ const Explore = () => {
         <Loader />
       </div>
     );
+
+  console.log(hasNextPage);
 
   const shouldShowSearchResults = searchValue !== "";
   const shouldShowPosts =
